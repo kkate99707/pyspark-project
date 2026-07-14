@@ -1,0 +1,26 @@
+name: Deploy Spark Job
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Docker containers
+        run: docker compose up -d
+
+      - name: Wait for Spark master to be ready
+        run: Start-Sleep -Seconds 15
+        shell: pwsh
+
+      - name: Copy main.py into container
+        run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
+
+      - name: Run Spark job
+        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/work-dir/main.py
