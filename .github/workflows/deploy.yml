@@ -37,4 +37,4 @@ jobs:
         run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
 
       - name: Run Spark job
-        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 /opt/spark/work-dir/main.py --n ${{ github.event.inputs.rows_count || 100 }}
+        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --conf spark.jars.ivy=/tmp/.ivy2 --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 /opt/spark/work-dir/main.py --n ${{ github.event.inputs.rows_count || 100 }}
