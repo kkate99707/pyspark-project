@@ -12,6 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Clean up old containers
+        run: docker compose down --remove-orphans
+        continue-on-error: true
+
       - name: Start Docker containers
         run: docker compose up -d
 
