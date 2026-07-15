@@ -21,7 +21,7 @@ jobs:
 
       - name: Wait for Spark master to be ready
         run: Start-Sleep -Seconds 15
-        shell: pwsh
+        shell: powershell
 
       - name: Copy main.py into container
         run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
