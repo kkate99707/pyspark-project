@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import shutil
 import glob
 import string
+import argparse
 
 names = [
     'James Anderson', 'Michael Brown', 'Robert Johnson', 'David Williams', 'John Smith',
@@ -196,10 +197,12 @@ def stop(spark):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--n', type=int, default=100)
+    args = parser.parse_args()
     spark = session()
-    # data_csv_two_month(spark)
     s = generate()
-    data_csv_today(spark, int(input('количество записей на сегодня: ')), s)
+    data_csv_today(spark, args.n, s)
     stop(spark)
 
 main()

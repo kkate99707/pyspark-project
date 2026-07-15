@@ -3,6 +3,12 @@ name: Deploy Spark Job
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      rows_count:
+        description: 'Количество строк для генерации'
+        required: false
+        default: '100'
 
 jobs:
   deploy:
@@ -12,19 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Clean up old containers
-        run: docker compose down --remove-orphans
-        continue-on-error: true
-
-      - name: Start Docker containers
+      - name: Ensure Spark containers are running
         run: docker compose up -d
-
-      - name: Wait for Spark master to be ready
-        run: Start-Sleep -Seconds 15
-        shell: powershell
 
       - name: Copy main.py into container
         run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
 
       - name: Run Spark job
-        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/work-dir/main.py
+        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/work-dir/main.py --n ${{ github.event.inputs.rows_count || 100 }}
