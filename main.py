@@ -6,8 +6,6 @@ from decimal import Decimal
 from random import randint, choice, uniform
 from pyspark.sql.window import Window
 from datetime import datetime, timedelta
-import shutil
-import glob
 import string
 import argparse
 
@@ -103,12 +101,16 @@ def date_reg(age):
     d = age * 365
     return end - timedelta(randint(1, d))
 
-def make_encrypt_udf(s):
+
+def make_encrypt_udf(spark, s):
+    broadcast_s = spark.sparkContext.broadcast(s)
+
     def encrypt(value):
         if value is None:
             return None
         value = str(value)
-        return ''.join(s[i] for i in value)
+        return ''.join(broadcast_s.value[i] for i in value)
+
     return udf(encrypt, StringType())
 
 
@@ -120,13 +122,43 @@ get_salary = udf(salary, DecimalType(10, 2))
 get_date_registration = udf(date_reg, DateType())
 
 
-# Настройка сессии Spark
+# Настройка сессии Spark с подключением к MinIO (S3-совместимое хранилище)
 def session():
     spark = SparkSession.builder \
         .appName("MyApp") \
         .master("spark://spark-master:7077") \
+        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+        .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
+        .config("spark.hadoop.fs.s3a.secret.key", "minioadmin") \
+        .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .getOrCreate()
     return spark
+
+
+def get_hadoop_fs(spark, bucket_uri="s3a://reports"):
+    hadoop_conf = spark._jsc.hadoopConfiguration()
+    uri = spark._jvm.java.net.URI(bucket_uri)
+    fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(uri, hadoop_conf)
+    return fs, spark._jvm.org.apache.hadoop.fs.Path
+
+
+def finalize_output(fs, Path, output_path, final_path):
+    files = fs.listStatus(Path(output_path))
+    part_file = None
+    for f in files:
+        file_name = f.getPath().getName()
+        if file_name.startswith("part-") and file_name.endswith(".csv"):
+            part_file = f.getPath()
+            break
+
+    if part_file is None:
+        raise FileNotFoundError(f"CSV файл не найден в {output_path}")
+
+    fs.rename(part_file, Path(final_path))
+    fs.delete(Path(output_path), True)  # True = удалить рекурсивно
+
 
 # Генерация сегодняшнего отчета
 def data_csv_today(spark, n, s):
@@ -139,30 +171,29 @@ def data_csv_today(spark, n, s):
         .withColumn('age', get_age()) \
         .withColumn('salary', get_salary()) \
         .withColumn('registration_date', get_date_registration(col('age')))
-
-    encrypt_udf = make_encrypt_udf(s)
+    encrypt_udf = make_encrypt_udf(spark, s)
     for c in df.columns:
         df = df.withColumn(c, encrypt_udf(col(c)))
 
     for c in df.columns:
         df = df.withColumn(c, when(rand() < 0.05, None).otherwise(col(c)))
 
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    output_path = "s3a://reports/output"
+    final_path = f"s3a://reports/{datetime.now().date()}-dev.csv"
 
-    df.coalesce(1).write.csv("data/output", header=True, mode='overwrite')
+    df.coalesce(1).write.csv(output_path, header=True, mode='overwrite')
 
-    name_file_old = glob.glob('data/output/*.csv')[0]
-    name_file_new = f'data/{datetime.now().date()}-dev.csv'
-    shutil.copy(name_file_old, name_file_new)
-
-    shutil.rmtree('data/output')
+    fs, Path = get_hadoop_fs(spark)
+    finalize_output(fs, Path, output_path, final_path)
 
 
 # Генерация отчетов за 2 месяца
-def data_csv_two_month(spark):
+def data_csv_two_month(spark, s):
     t_m = timedelta(60)
     data = datetime.now() - t_m
+    fs, Path = get_hadoop_fs(spark)
+    encrypt_udf = make_encrypt_udf(spark, s)
+
     while data <= datetime.now():
         if data.day % 2 == 1:
             w = Window.orderBy(monotonically_increasing_id())
@@ -175,21 +206,21 @@ def data_csv_two_month(spark):
                 .withColumn('salary', get_salary()) \
                 .withColumn('registration_date', get_date_registration(col('age')))
 
+            for c in df.columns:
+                df = df.withColumn(c, encrypt_udf(col(c)))
+
             columns_to_nullify = ['city', 'salary', 'email']
             for c in columns_to_nullify:
                 df = df.withColumn(c, when(rand() < 0.05, None).otherwise(col(c)))
 
-            if not os.path.exists('data'):
-                os.makedirs('data')
+            output_path = "s3a://reports/output"
+            final_path = f"s3a://reports/{data.date()}-dev.csv"
 
-            df.coalesce(1).write.csv("data/output", header=True, mode='overwrite')
+            df.coalesce(1).write.csv(output_path, header=True, mode='overwrite')
 
-            name_file_old = glob.glob('data/output/*.csv')[0]
-            name_file_new = f'data/{data.date()}-dev.csv'
-            shutil.copy(name_file_old, name_file_new)
+            finalize_output(fs, Path, output_path, final_path)
+
         data += timedelta(1)
-
-    shutil.rmtree('data/output')
 
 
 def stop(spark):
@@ -204,5 +235,6 @@ def main():
     s = generate()
     data_csv_today(spark, args.n, s)
     stop(spark)
+
 
 main()

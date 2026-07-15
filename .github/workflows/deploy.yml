@@ -18,11 +18,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ensure Spark containers are running
+      - name: Ensure containers are running
         run: docker compose up -d
+
+      - name: Wait for MinIO to be ready
+        run: Start-Sleep -Seconds 10
+        shell: powershell
+
+      - name: Create MinIO bucket if not exists
+        run: |
+          docker run --rm --network spark-network `
+            minio/mc `
+            sh -c "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing local/reports"
+        shell: powershell
 
       - name: Copy main.py into container
         run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
 
       - name: Run Spark job
-        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark/work-dir/main.py --n 500
+        run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 /opt/spark/work-dir/main.py --n ${{ github.event.inputs.rows_count || 100 }}
