@@ -43,9 +43,6 @@ services:
     depends_on:
       - spark-master
 
-  # ДОБАВЛЕНО: MinIO — S3-совместимое хранилище.
-  # Работает как общий "бакет", видимый всем контейнерам кластера через сеть,
-  # а не через общий диск — так это устроено и в реальных облачных кластерах.
   minio:
     image: minio/minio:latest
     container_name: minio
@@ -54,8 +51,8 @@ services:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
     ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # веб-консоль
+      - "9000:9000"
+      - "9001:9001"
     networks:
       - spark-network
     volumes:
@@ -64,6 +61,7 @@ services:
 networks:
   spark-network:
     driver: bridge
+    name: spark-network
 
 volumes:
   minio-data:
