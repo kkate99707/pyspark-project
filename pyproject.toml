@@ -3,5 +3,9 @@ name = "pysparkproject1"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    "faker>=40.28.1",
+    "folium>=0.20.0",
+    "geonamescache>=3.0.1",
+    "kagglehub>=1.0.2",
     "pyspark>=4.1.2",
 ]

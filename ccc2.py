@@ -9,6 +9,11 @@ from datetime import datetime, timedelta
 import shutil
 import glob
 import string
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+os.environ['HADOOP_HOME'] = 'C:\\hadoop'
+os.environ['PATH'] = 'C:\\hadoop\\bin;' + os.environ['PATH']
+
 
 names = [
     'James Anderson', 'Michael Brown', 'Robert Johnson', 'David Williams', 'John Smith',
@@ -123,9 +128,9 @@ get_date_registration = udf(date_reg, DateType())
 def session():
     spark = SparkSession.builder \
         .appName("MyApp") \
-        .master("spark://spark-master:7077") \
         .getOrCreate()
     return spark
+
 
 # Генерация сегодняшнего отчета
 def data_csv_today(spark, n, s):
