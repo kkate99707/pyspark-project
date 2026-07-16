@@ -30,7 +30,7 @@ jobs:
         run: docker exec spark-master pip install --no-cache-dir --target=/opt/spark/work-dir/pylibs pytest
 
       - name: Run tests
-        run: docker exec -e PYTHONPATH=/opt/spark/work-dir/pylibs spark-master python -m pytest /opt/spark/work-dir/test.py -v
+        run: docker exec -e PYTHONPATH=/opt/spark/work-dir/pylibs spark-master python3 -m pytest /opt/spark/work-dir/test.py -v
 
       - name: Wait for MinIO to be ready
         run: Start-Sleep -Seconds 10
