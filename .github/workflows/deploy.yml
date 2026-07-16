@@ -18,14 +18,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Copy test file into container
-        run: docker cp test.py spark-master:/opt/spark/work-dir/test.py
+      - name: Ensure containers are running
+        run: docker compose up -d
+
+      - name: Copy main.py and test.py into container
+        run: |
+                docker cp main.py spark-master:/opt/spark/work-dir/main.py
+                docker cp test.py spark-master:/opt/spark/work-dir/test.py
 
       - name: Install pytest inside container
-        run: docker exec spark-master pip install pytest
+        run: docker exec spark-master pip install --no-cache-dir --target=/opt/spark/work-dir/pylibs pytest
 
-      - name: Run tests inside container
-        run: docker exec spark-master python -m pytest /opt/spark/work-dir/test.py -v
+      - name: Run tests
+        run: docker exec -e PYTHONPATH=/opt/spark/work-dir/pylibs spark-master python -m pytest /opt/spark/work-dir/test.py -v
 
       - name: Wait for MinIO to be ready
         run: Start-Sleep -Seconds 10
@@ -33,14 +38,11 @@ jobs:
 
       - name: Create MinIO bucket if not exists
         run: |
-            docker run --rm --network spark-network `
-              --entrypoint sh `
-              minio/mc `
-              -c "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing local/reports"
+                docker run --rm --network spark-network `
+                  --entrypoint sh `
+                  minio/mc `
+                  -c "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing local/reports"
         shell: powershell
-
-      - name: Copy main.py into container
-        run: docker cp main.py spark-master:/opt/spark/work-dir/main.py
 
       - name: Run Spark job
         run: docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 --conf spark.jars.ivy=/tmp/.ivy2 --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 /opt/spark/work-dir/main.py --n ${{ github.event.inputs.rows_count || 100 }}
