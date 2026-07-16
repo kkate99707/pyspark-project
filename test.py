@@ -1,3 +1,6 @@
+import findspark
+findspark.init('/opt/spark')
+
 import string
 from main import generate
 

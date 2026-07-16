@@ -23,11 +23,11 @@ jobs:
 
       - name: Copy main.py and test.py into container
         run: |
-                docker cp main.py spark-master:/opt/spark/work-dir/main.py
-                docker cp test.py spark-master:/opt/spark/work-dir/test.py
+            docker cp main.py spark-master:/opt/spark/work-dir/main.py
+            docker cp test.py spark-master:/opt/spark/work-dir/test.py
 
-      - name: Install pytest inside container
-        run: docker exec spark-master pip install --no-cache-dir --target=/opt/spark/work-dir/pylibs pytest
+      - name: Install test dependencies inside container
+        run: docker exec spark-master pip install --no-cache-dir --target=/opt/spark/work-dir/pylibs pytest findspark
 
       - name: Run tests
         run: docker exec -e PYTHONPATH=/opt/spark/work-dir/pylibs spark-master python3 -m pytest /opt/spark/work-dir/test.py -v

@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "faker>=40.28.1",
+    "findspark>=2.0.1",
     "folium>=0.20.0",
     "geonamescache>=3.0.1",
     "kagglehub>=1.0.2",
