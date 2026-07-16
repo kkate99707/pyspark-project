@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install test dependencies
-        run: uv sync
 
       - name: Copy test file into container
         run: docker cp test.py spark-master:/opt/spark/work-dir/test.py
