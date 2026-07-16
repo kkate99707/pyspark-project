@@ -20,10 +20,14 @@ jobs:
       - name: Install test dependencies
         run: uv sync
 
-      - name: Run tests
-        run: pytest test_main.py -v
-      - name: Ensure containers are running
-        run: docker compose up -d
+      - name: Copy test file into container
+        run: docker cp test.py spark-master:/opt/spark/work-dir/test.py
+
+      - name: Install pytest inside container
+        run: docker exec spark-master pip install pytest
+
+      - name: Run tests inside container
+        run: docker exec spark-master python -m pytest /opt/spark/work-dir/test.py -v
 
       - name: Wait for MinIO to be ready
         run: Start-Sleep -Seconds 10
