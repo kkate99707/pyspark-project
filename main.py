@@ -236,5 +236,5 @@ def main():
     data_csv_today(spark, args.n, s)
     stop(spark)
 
-
-main()
+if __name__ == '__main__':
+    main()
